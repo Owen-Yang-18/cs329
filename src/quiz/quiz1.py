@@ -168,10 +168,11 @@ def normalize_extra(text):
 
 
 if __name__ == '__main__':
+    ### I put some edgey cases that I thought of, and was able to successfully resolve them
     S = [
         'I met twelve people',
         'I have one brother and two sisters',
-        'A year has three hundred sixty-five days',
+        'A year has three hundred sixty five days',
         'I made a million dollars',
         'Professor Zureick-Brown has "Thirty-Three-Thousand twenty one???!!!" cars',
         'There is a two story building costing a Hundred-Million dollars',
