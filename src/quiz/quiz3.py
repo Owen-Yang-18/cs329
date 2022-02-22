@@ -99,7 +99,7 @@ def create_nw_dict(data: List[List[Tuple[str, str]]]) -> Dict[str, List[Tuple[st
     model = dict()
     for sentence in data:
         for i, (_, curr_pos) in enumerate(sentence):
-            next_word = sentence[i+1][0] if i+1 < len(sentence) else DUMMY
+            next_word = sentence[i+1][0] if i + 1 < len(sentence) else DUMMY
             model.setdefault(next_word, Counter()).update([curr_pos])
     return to_probs(model)
 
@@ -107,15 +107,15 @@ def create_cw_pp_dict(data: List[List[Tuple[str, str]]]) -> Dict[str, List[Tuple
     model = dict()
     for sentence in data:
         for i, (curr_word, curr_pos) in enumerate(sentence):
-            prev_pos = sentence[i - 1][1] if i + 1 < len(sentence) else DUMMY
-            model.setdefault((prev_pos, curr_word), Counter()).update([curr_pos])
+            prev_pos = sentence[i - 1][1] if i > 0 else DUMMY
+            model.setdefault((curr_word, prev_pos), Counter()).update([curr_pos])
     return to_probs(model)
 
 def create_cw_pw_dict(data: List[List[Tuple[str, str]]]) -> Dict[str, List[Tuple[str, float]]]:
     model = dict()
     for sentence in data:
         for i, (curr_word, curr_pos) in enumerate(sentence):
-            prev_word = sentence[i - 1][0] if i + 1 < len(sentence) else DUMMY
+            prev_word = sentence[i - 1][0] if i > 0 else DUMMY
             model.setdefault((prev_word, curr_word), Counter()).update([curr_pos])
     return to_probs(model)
 
@@ -125,6 +125,15 @@ def create_cw_nw_dict(data: List[List[Tuple[str, str]]]) -> Dict[str, List[Tuple
         for i, (curr_word, curr_pos) in enumerate(sentence):
             next_word = sentence[i + 1][0] if i + 1 < len(sentence) else DUMMY
             model.setdefault((curr_word, next_word), Counter()).update([curr_pos])
+    return to_probs(model)
+
+def create_pw_cw_nw_dict(data: List[List[Tuple[str, str]]]) -> Dict[str, List[Tuple[str, float]]]:
+    model = dict()
+    for sentence in data:
+        for i, (curr_word, curr_pos) in enumerate(sentence):
+            next_word = sentence[i + 1][0] if i + 1 < len(sentence) else DUMMY
+            prev_word = sentence[i - 1][0] if i > 0 else DUMMY
+            model.setdefault((prev_word, curr_word, next_word), Counter()).update([curr_pos])
     return to_probs(model)
 
 def train(trn_data: List[List[Tuple[str, str]]], dev_data: List[List[Tuple[str, str]]]) -> Tuple:
@@ -142,6 +151,7 @@ def train(trn_data: List[List[Tuple[str, str]]], dev_data: List[List[Tuple[str, 
     cw_pp_dict = create_cw_pp_dict(trn_data)
     cw_pw_dict = create_cw_pw_dict(trn_data)
     cw_nw_dict = create_cw_nw_dict(trn_data)
+    pw_cw_nw_dict = create_pw_cw_nw_dict(trn_data)
     best_acc, best_args = -1, None
     grid = [0.1, 0.5, 1.0]
 
@@ -180,7 +190,7 @@ def predict(tokens: List[str], *args) -> List[Tuple[str, float]]:
         for pos, prob in cw_dict.get(curr_word, list()):
             scores[pos] = scores.get(pos, 0) + prob * cw_weight
 
-        for pos, prob in cw_pp_dict.get((prev_pos, curr_word), list()):
+        for pos, prob in cw_pp_dict.get((curr_word, prev_pos), list()):
             scores[pos] = scores.get(pos, 0) + prob * cw_pp_weight
 
         for pos, prob in pw_dict.get(prev_word, list()):
