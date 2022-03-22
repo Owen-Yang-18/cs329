@@ -14,6 +14,7 @@
 # limitations under the License.
 # ========================================================================
 import glob
+import itertools
 import os
 from types import SimpleNamespace
 from typing import Iterable, Tuple, Any, List, Set
@@ -78,84 +79,39 @@ def match(AC: ahocorasick.Automaton, tokens: List[str]) -> List[Tuple[str, int, 
 
     return spans
 
+def findMax(sequence):
+    k = 1
+    sequence.sort(key=lambda x: x[2])
+    r1 = sequence[0][2]
 
-# def remove_overlaps(entities: List[Tuple[str, int, int, Set[str]]]) -> List[Tuple[str, int, int, Set[str]]]:
-#     """
-#     :param entities: a list of tuples where each tuple consists of
-#              - span: str,
-#              - start token index (inclusive): int
-#              - end token index (exclusive): int
-#              - a set of values for the span: Set[str]
-#     :return: a list of entities where each entity is represented by a tuple of (span, start index, end index, value set)
-#     """
-#     # TODO: to be updated
-#     entities = sorted(entities, key=lambda x:x[1])
-#     print(entities)
-#     entities.append(('XXX', int(-1), int(-1), {'XXX'}))
-#     overlap_sequence = []
-#     nonoverlap_sequence = []
-#     i = 0
-#     max = -1
-#     while i < len(entities) - 1:
-#         if entities[i][2] > max:
-#             max = entities[i][2]
-#         seq = []
-#         seq.append(entities[i])
-#         j = i + 1
-#         while j < len(entities) and entities[j][1] >= 0 and entities[j][1] <= max:
-#             seq.append(entities[j])
-#             if entities[j][2] > max:
-#                 max = entities[j][2]
-#             j += 1
-#
-#         if len(seq) > 1:
-#             overlap_sequence.append(seq)
-#         else:
-#             nonoverlap_sequence.append(seq[0])
-#         i = j
-#     print(overlap_sequence)
-#     for j in range(len(overlap_sequence)):
-#         if overlap_sequence[j][0][2] >= overlap_sequence[j][-1][1]:
-#             index = -1
-#             max = -1
-#             for i in range(len(overlap_sequence[j])):
-#                 ran = overlap_sequence[j][i][2] - overlap_sequence[j][i][1]
-#                 if ran > max:
-#                     max = ran
-#                     index = i
-#             overlap_sequence[j] = list(overlap_sequence[j][index])
-#
-#     print(overlap_sequence)
-#     return []
+    for i in range(1, len(sequence)):
+        l = sequence[i][1]
+        r2 = sequence[i][2]
 
-def check_overlap(entities: List[Tuple[str, int, int, Set[str]]]):
-    # check whether overlap exists given a list of entities
-    entities = sorted(entities, key= lambda x:(x[1],x[2]), reverse=True)
-    for i in range(len(entities)-1):
-        if entities[i+1][2] > entities[i][1]:
-            return True
-    return False
+        if l > r1:
+            r1 = r2
+            k += 1
+    return k
 
-def get_longer(entities: List[Tuple[str, int, int, Set[str]]]):
-    # for a list with length 2
-    if entities[0][2]-entities[0][1]>entities[1][2]-entities[1][1]:
-        return entities[0]
-    else:
-        return entities[1]
+def nonoverlap(seq):
+    seq.sort(key=lambda x:x[2])
+    for i in range(len(seq)-1):
+        if seq[i+1][1] < seq[i][2]:
+            return False
+    return True
 
-
-def get_clean(entities: List[Tuple[str, int, int, Set[str]]]):
-    # for a list with length > 2
-    clean = [entities]
-    while len(clean)!=0:
-        current = clean.pop(-1)
-        if not check_overlap(current):
-            return current
-        else:
-            for i in range(len(current)):
-                a = sorted(current, key= lambda x:x[2]-x[1])
-                a.pop(i)
-                clean.insert(0,a)
+def bf_remove(sequence):
+    k = findMax(sequence)
+    maxval = -1
+    maxseq = list()
+    for seq in itertools.combinations(sequence, k):
+        seq = list(seq)
+        if nonoverlap(seq):
+            total = sum([item[2]-item[1] for item in seq])
+            if total > maxval:
+                maxval = total
+                maxseq = seq
+    return maxseq
 
 def remove_overlaps(entities: List[Tuple[str, int, int, Set[str]]]) -> List[Tuple[str, int, int, Set[str]]]:
     """
@@ -166,38 +122,51 @@ def remove_overlaps(entities: List[Tuple[str, int, int, Set[str]]]) -> List[Tupl
              - a set of values for the span: Set[str]
     :return: a list of entities where each entity is represented by a tuple of (span, start index, end index, value set)
     """
+    # TODO: to be updated
+    entities = sorted(entities, key=lambda x:x[1])
+    entities.append(('XXX', int(-1), int(-1), {'XXX'}))
+    overlap_sequence = []
+    nonoverlap_sequence = []
+    i = 0
+    max = -1
+    while i < len(entities) - 1:
+        if entities[i][2] > max:
+            max = entities[i][2]
+        seq = []
+        seq.append(entities[i])
+        j = i + 1
+        while j < len(entities) and entities[j][1] >= 0 and entities[j][1] <= max-1:
+            seq.append(entities[j])
+            if entities[j][2] > max:
+                max = entities[j][2]
+            j += 1
 
-    overlap = []
-    total_overlap = []
-    end = False
-
-    entities = sorted(entities, key=lambda x: (x[1], x[2]))
-
-    for i in range(len(entities)-2,-1,-1):
-        if entities[i+1][1] < entities[i][2]:
-            overlap.append(entities.pop(i+1))
-            end = True
-        elif end:
-            overlap.append(entities.pop(i+1))
-            end = False
-            total_overlap.append(overlap)
-            overlap = []
-    if end:
-        overlap.append(entities.pop(0))
-        total_overlap.append(overlap)
-
-    clean_all = []
-    print(total_overlap)
-    for theoverlap in total_overlap:
-        if len(theoverlap) == 2:
-            clean_all.append(get_longer(theoverlap))
+        if len(seq) > 1:
+            overlap_sequence.append(seq)
         else:
-            clean_all.extend(get_clean(theoverlap))
+            nonoverlap_sequence.append(seq[0])
+        i = j
 
-    entities.extend(clean_all)
-
-    return sorted(entities, key= lambda x:(x[1],x[2]))
-
+    for j in range(len(overlap_sequence)):
+        if overlap_sequence[j][0][2] >= overlap_sequence[j][-1][1]:
+            index = -1
+            max = -1
+            for i in range(len(overlap_sequence[j])):
+                ran = overlap_sequence[j][i][2] - overlap_sequence[j][i][1]
+                if ran > max:
+                    max = ran
+                    index = i
+            overlap_sequence[j] = [tuple(overlap_sequence[j][index])]
+        else:
+            overlap_sequence[j] = bf_remove(overlap_sequence[j])
+    final = []
+    for ovse in overlap_sequence:
+        for item in ovse:
+            final.append(item)
+    for nose in nonoverlap_sequence:
+        final.append(nose)
+    final = sorted(final, key=lambda x:x[2])
+    return final
 
 def to_bilou(tokens: List[str], entities: List[Tuple[str, int, int, str]]) -> List[str]:
     """
@@ -210,16 +179,48 @@ def to_bilou(tokens: List[str], entities: List[Tuple[str, int, int, str]]) -> Li
     :return: a list of named entity tags in the BILOU notation with respect to the tokens
     """
     # TODO: to be updated
-    return []
+    result = ["O"] * len(tokens)
+    for item in entities:
+        word, bow, eow, tag = item
+        tokens = word.split()
+        if len(tokens) == 1:
+            result[bow] = "U-" + tag
+        else:
+            for tok in tokens:
+                if tokens.index(tok) == 0:
+                    result[bow] = "B-" + tag
+                elif tokens.index(tok) == len(tokens) - 1:
+                    result[bow + tokens.index(tok)] = "L-" + tag
+                else:
+                    result[bow + tokens.index(tok)] = "I-" + tag
 
+    return result
 
 if __name__ == '__main__':
-    gaz_dir = 'ner'
-    AC = read_gazetteers('ner')
+    gaz_dir = '../../res/ner'
+    AC = read_gazetteers('C:/Users/Owen/PycharmProjects/cs329/res/ner')
 
     tokens = 'Atlantic City of Georgia'.split()
     entities = match(AC, tokens)
-    entities = [('Atlantic City', 0, 2, {'us_city'}), ('Georgia', 3, 4, {'us_state', 'country'}), ('Georgia', 6, 14, {'us_state', 'country'}), ('Georgia', 12, 27, {'us_state', 'country'}),
-                ('Georgia', 25, 33, {'us_state', 'country'}), ('Georgia', 30, 38, {'us_state', 'country'}), ('Georgia', 54, 56, {'us_state', 'country'})]
+    # Uncomment below for some edgy cases, especially the first one
+    # entities = [('Atlantic City', 0, 2, {'us_city'}), ('Georgia', 3, 4, {'us_state', 'country'}), ('Georgia', 6, 14, {'us_state', 'country'}), ('Georgia',12, 27, {'us_state', 'country'}),
+    #            ('Georgia', 25, 33, {'us_state', 'country'}), ('Georgia', 30, 38, {'us_state', 'country'}), ('Georgia', 54, 56, {'us_state', 'country'})]
+    # entities = [('Atlantic City', 0, 2, {'us_city'}), ('Georgia', 3, 4, {'us_state', 'country'}),
+    #             ('Georgia', 6, 10, {'us_state', 'country'}), ('Georgia', 8, 20, {'us_state', 'country'}), ('Georgia', 12, 15, {'us_state', 'country'})
+    #             , ('Georgia', 17, 24, {'us_state', 'country'}), ('Georgia', 22, 50, {'us_state', 'country'}), ('Georgia', 28, 33, {'us_state', 'country'}), ('Georgia', 34, 46, {'us_state', 'country'})]
+    # entities = [('Atlantic City', 0, 2, {'us_city'}), ('Georgia', 2, 4, {'us_state', 'country'}),
+    #             ('Georgia', 6, 10, {'us_state', 'country'}), ('Georgia', 8, 20, {'us_state', 'country'}),
+    #             ('Georgia', 12, 25, {'us_state', 'country'})
+    #     , ('Georgia', 27, 34, {'us_state', 'country'}), ('Georgia', 32, 38 , {'us_state', 'country'}),
+    #             ('Georgia', 39, 43, {'us_state', 'country'}), ('Georgia', 44, 46, {'us_state', 'country'})]
     entities = remove_overlaps(entities)
     print(entities)
+
+    tokens = 'Jinho is a professor at Emory University in the United States of America'.split()
+    entities = [
+        ('Jinho', 0, 1, 'PER'),
+        ('Emory University', 5, 7, 'ORG'),
+        ('United States of America', 9, 13, 'LOC')
+    ]
+    tags = to_bilou(tokens, entities)
+    for token, tag in zip(tokens, tags): print(token, tag)
